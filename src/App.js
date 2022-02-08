@@ -10,7 +10,8 @@ class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      parseResults: []
+      parseResults: [],
+      parseResultsMultiple: []
     };
   }
 
@@ -19,6 +20,8 @@ class App extends Component {
     console.log('render called');
 
     const htmlParseResults = [];
+
+    console.log('parseResultsMultiple=', this.state.parseResultsMultiple)
 
     for (const parseResult of this.state.parseResults) {
 
@@ -68,12 +71,85 @@ class App extends Component {
           <a className="App-link" href="https://reactjs.org" target="_blank">React</a>
         </header>
 
+        <hr></hr>
+        multiple files:
+        <input type="file" multiple="multiple" onChange={this.onChangeMultipleHandler}></input>
+        <hr></hr>
+
         <input type="file" name="file" onChange={this.onChangeHandler}/>
 
         {htmlParseResults}
 
       </div>
     );
+  }
+
+  //when multiple files are selected
+  onChangeMultipleHandler = async (event) => {
+    this.setState({
+      parseResultsMultiple: []
+    });
+
+
+    let startSeconds = 0
+    let endSeconds = 0
+    let startTime = '';
+    let endTime = '';
+
+    var timestampedTracklist = ``;
+
+    for (const file of event.target.files) {
+      
+      const parseResult = {
+        file: file
+      };
+
+      this.setState(state => {
+        state.parseResultsMultiple.push(parseResult);
+        return state;
+      });
+
+      //get metadata
+      try {
+        const metadata = await this.parseFile(file);
+
+        //get duration (seconds)
+        var durationSeconds = metadata.format.duration;
+        console.log('duration seconds =',durationSeconds)
+        //convert duration to hh:mm:ss
+        var duration = new Date(durationSeconds * 1000).toISOString().substr(11, 8)
+        console.log('duration =',duration)
+        
+        //set startSeconds
+        if(endSeconds === 0){
+          startSeconds = 0;
+        }else{
+          startSeconds = endSeconds;
+        }
+        //set endSeconds
+        endSeconds = startSeconds + durationSeconds
+        //convert to readable times
+        startTime =  new Date(startSeconds * 1000).toISOString().substr(11, 8)
+        endTime =  new Date(endSeconds * 1000).toISOString().substr(11, 8)
+
+        //get track title
+        let trackTitle = metadata.common.title;
+
+        timestampedTracklist = `${timestampedTracklist}\n${startTime} - ${endTime} ${trackTitle}`
+        //console.log(`${startTime} - ${endTime} ${trackTitle}`)
+
+        // Update GUI
+        this.setState(state => {
+          state.parseResultsMultiple[state.parseResultsMultiple.length - 1].metadata = metadata;
+          return state;
+        });
+      }catch(err){
+
+      }
+
+    }
+
+    console.log(timestampedTracklist)
   }
 
   //when file upload handler is changed
